@@ -1,0 +1,88 @@
+
+pipeline {
+agent any
+stages {
+stage('Checkout') {
+steps {
+script {
+env.GITURL = 'github.com/anithamulcha/jenkins-resources.git'
+
+git branch: 'master', credentialsId: 'github_anitha', url: 'https://github.com/anithamulcha/jenkins-resources.git'
+//sh "git config user.email admin@example.com"
+//sh "git config user.name example"
+//sh "git add ."
+//sh "git commit -m 'Triggered Build: ${env.BUILD_NUMBER}'"
+//sh "git push https://${GIT_USERNAME}:${encodedPassword}@github.com/${GIT_USERNAME}/example.git"
+//sh "git clone https://${GIT_USERNAME}:${encodedPassword}@${GITURL}"
+sh "git remote -v"
+sh "git branch -a | grep remotes > ${WORKSPACE}/branchesList.txt"
+def listBranchesAvailable = readFile 'branchesList.txt'
+env.branchToBeTaken = timeout (time:1, unit:"MINUTES") {
+input message: 'Branch to be taken', ok: 'Confirm!',
+parameters: [choice(name: 'Branches Available:', choices: "${listBranchesAvailable }", description: 'From which branch you want to take code?')]
+}
+
+sh "git checkout $branchToBeTaken"
+env.BRANCHNAME = input message: 'Please enter the branch name you want to create',
+parameters: [string(defaultValue: '',
+description: '',
+name: 'Branchname')]
+try {
+
+sh "git checkout -b $BRANCHNAME"
+
+} finally {
+sh "git checkout $BRANCHNAME"
+}
+withCredentials([usernamePassword(credentialsId: 'github_anitha', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+def encodedPassword = URLEncoder.encode("$GIT_PASSWORD",'UTF-8')
+sh "git push https://${GIT_USERNAME}:${encodedPassword}@github.com/${GIT_USERNAME}/jenkins-resources.git $BRANCHNAME"
+}
+
+}
+}
+}
+
+}
+}
+==============================================================================================================================================================
+
+
+GITURL = 'git@github.com:anithamulcha/jenkins-resources.git'
+pipeline {
+agent any
+stages {
+stage('Checkout') {
+steps {
+script {
+env.GITURL = GITURL
+git credentialsId: 'ssh', url: GITURL
+sh "git remote -v"
+sh "git branch -a | grep remotes > branchesList.txt"
+def listBranchesAvailable = readFile 'branchesList.txt'
+env.branchToBeTaken = timeout(time: 1, unit: "MINUTES") {
+input message: 'Branch to be taken', ok: 'Confirm!',
+parameters: [choice(name: 'Branches Available:', choices: "${listBranchesAvailable }", description: 'From which branch you want to take code?')]
+}
+
+sh "git checkout $branchToBeTaken"
+env.BRANCHNAME = input message: 'Please enter the branch name you want to create',
+parameters: [string(defaultValue: '',
+description: '',
+name: 'Branchname')]
+try {
+
+sh "git checkout -b $BRANCHNAME"
+
+} catch (e) {
+echo('Branch Already Exists so skipping this and returning.')
+return
+}
+sh "git push $GITURL $BRANCHNAME"
+
+}
+}
+}
+
+}
+}
